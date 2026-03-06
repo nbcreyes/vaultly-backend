@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Seller\SellerDashboardController;
 use App\Http\Controllers\Api\Seller\SellerPayoutController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Seller\SellerProductController;
+use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminRefundController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
 use App\Http\Controllers\Api\Admin\AdminPayoutController;
@@ -136,14 +137,30 @@ Route::prefix('v1')->group(function () {
         // Admin
         Route::middleware('role.admin')->prefix('admin')->group(function () {
 
+            // Dashboard
+            Route::get('/dashboard/summary',     [AdminDashboardController::class, 'summary']);
+            Route::get('/dashboard/revenue',     [AdminDashboardController::class, 'revenue']);
+            Route::get('/dashboard/top-sellers', [AdminDashboardController::class, 'topSellers']);
+
+            // User management
+            Route::get('/users',                   [AdminDashboardController::class, 'users']);
+            Route::patch('/users/{id}/status',     [AdminDashboardController::class, 'updateUserStatus']);
+
+            // Product moderation
+            Route::get('/products',                      [AdminDashboardController::class, 'products']);
+            Route::patch('/products/{id}/status',        [AdminDashboardController::class, 'updateProductStatus']);
+
+            // Seller applications
             Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
             Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
             Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
 
+            // Payouts
             Route::get('/payouts',                [AdminPayoutController::class, 'index']);
             Route::get('/payouts/{id}',           [AdminPayoutController::class, 'show']);
             Route::patch('/payouts/{id}/process', [AdminPayoutController::class, 'process']);
 
+            // Refunds
             Route::get('/refunds',                [AdminRefundController::class, 'index']);
             Route::get('/refunds/{id}',           [AdminRefundController::class, 'show']);
             Route::patch('/refunds/{id}/process', [AdminRefundController::class, 'process']);
