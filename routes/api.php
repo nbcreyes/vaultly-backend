@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Buyer\BuyerRefundController;
 use App\Http\Controllers\Api\Buyer\CheckoutController;
 use App\Http\Controllers\Api\Buyer\DownloadController;
 use App\Http\Controllers\Api\Buyer\ReviewController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerDashboardController;
 use App\Http\Controllers\Api\Seller\SellerPayoutController;
@@ -84,6 +85,14 @@ Route::prefix('v1')->group(function () {
         Route::delete('/reviews/{id}',      [ReviewController::class, 'destroy']);
         Route::patch('/reviews/{id}/reply', [ReviewController::class, 'reply']);
 
+        // Messaging
+        Route::prefix('messages')->group(function () {
+            Route::get('/',                      [MessageController::class, 'index']);
+            Route::get('/order/{orderId}',       [MessageController::class, 'thread']);
+            Route::post('/order/{orderId}',      [MessageController::class, 'send']);
+            Route::post('/order/{orderId}/read', [MessageController::class, 'markRead']);
+        });
+
         // Seller application
         Route::prefix('seller')->group(function () {
             Route::post('/application', [SellerApplicationController::class, 'store']);
@@ -130,20 +139,17 @@ Route::prefix('v1')->group(function () {
         // Admin
         Route::middleware('role.admin')->prefix('admin')->group(function () {
 
-            // Seller applications
             Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
             Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
             Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
 
-            // Payouts
             Route::get('/payouts',                [AdminPayoutController::class, 'index']);
             Route::get('/payouts/{id}',           [AdminPayoutController::class, 'show']);
             Route::patch('/payouts/{id}/process', [AdminPayoutController::class, 'process']);
 
-            // Refunds
-            Route::get('/refunds',                 [AdminRefundController::class, 'index']);
-            Route::get('/refunds/{id}',            [AdminRefundController::class, 'show']);
-            Route::patch('/refunds/{id}/process',  [AdminRefundController::class, 'process']);
+            Route::get('/refunds',                [AdminRefundController::class, 'index']);
+            Route::get('/refunds/{id}',           [AdminRefundController::class, 'show']);
+            Route::patch('/refunds/{id}/process', [AdminRefundController::class, 'process']);
 
         });
 
