@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Mail;
  */
 class BuyerRefundController extends Controller
 {
+    public function __construct(
+        private readonly \App\Services\NotificationService $notifications,
+    ) {}
     /**
      * Submit a refund request for a purchased order item.
      *
@@ -46,7 +49,7 @@ class BuyerRefundController extends Controller
             ->whereHas(
                 'order',
                 fn($q) => $q->where('buyer_id', $buyer->id)
-                             ->where('status', 'completed')
+                    ->where('status', 'completed')
             )
             ->with(['order', 'product:id,title,price'])
             ->first();
@@ -72,7 +75,7 @@ class BuyerRefundController extends Controller
         if ($hoursAgo > $refundWindowHours) {
             return ApiResponse::error(
                 "Refunds can only be requested within {$refundWindowHours} hours of purchase. "
-                . "This purchase was made {$hoursAgo} hours ago.",
+                    . "This purchase was made {$hoursAgo} hours ago.",
                 403
             );
         }
@@ -99,11 +102,17 @@ class BuyerRefundController extends Controller
         ]);
 
         Mail::to($buyer->email)->send(new RefundRequestedMail(
-            userName:     $buyer->name,
+            userName: $buyer->name,
             productTitle: $orderItem->product->title,
-            amount:       $orderItem->price,
-            supportUrl:   config('app.frontend_url') . '/support',
+            amount: $orderItem->price,
+            supportUrl: config('app.frontend_url') . '/support',
         ));
+
+        $this->notifications->refundRequested(
+            $buyer->id,
+            $orderItem->product->title,
+            $refund->id
+        );
 
         return ApiResponse::created([
             'refund' => $refund,

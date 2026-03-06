@@ -24,6 +24,9 @@ use Illuminate\Support\Str;
  */
 class AdminSellerApplicationController extends Controller
 {
+    public function __construct(
+        private readonly \App\Services\NotificationService $notifications,
+    ) {}
     /**
      * List all seller applications with optional status filter.
      *
@@ -101,6 +104,7 @@ class AdminSellerApplicationController extends Controller
         if ($request->decision === 'approved') {
             return $this->approveApplication($application, $admin);
         }
+        $this->notifications->sellerApproved($application->user_id);
 
         return $this->rejectApplication($application, $admin, $request->rejection_reason);
     }
@@ -193,6 +197,11 @@ class AdminSellerApplicationController extends Controller
                 $reason,
                 $reapplyUrl,
             )
+        );
+
+        $this->notifications->sellerRejected(
+            $application->user_id,
+            $request->rejection_reason ?? 'No reason provided.'
         );
 
         return ApiResponse::success(

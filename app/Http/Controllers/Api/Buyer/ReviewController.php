@@ -24,6 +24,9 @@ use Illuminate\Http\Request;
  */
 class ReviewController extends Controller
 {
+    public function __construct(
+        private readonly \App\Services\NotificationService $notifications,
+    ) {}
     /**
      * Submit a review for a purchased product.
      *
@@ -43,7 +46,7 @@ class ReviewController extends Controller
             ->whereHas(
                 'order',
                 fn($q) => $q->where('buyer_id', $buyer->id)
-                             ->where('status', 'completed')
+                    ->where('status', 'completed')
             )
             ->with('product')
             ->first();
@@ -86,6 +89,14 @@ class ReviewController extends Controller
         // Recalculate the product's aggregate rating
         Review::recalculateForProduct($orderItem->product_id);
 
+        $this->notifications->newReview(
+            $orderItem->product->seller_id,
+            $orderItem->product->title,
+            $request->rating,
+            $review->id,
+            $orderItem->product_id
+        );
+
         $review->load('buyer:id,name,avatar_url');
 
         return ApiResponse::created([
@@ -125,6 +136,13 @@ class ReviewController extends Controller
             'seller_reply'      => $request->reply,
             'seller_replied_at' => now(),
         ]);
+
+        $this->notifications->reviewReply(
+            $review->buyer_id,
+            $review->product->title,
+            $review->id,
+            $review->product_id
+        );
 
         return ApiResponse::success([
             'review' => $this->formatReview($review->fresh('buyer')),
@@ -246,7 +264,7 @@ class ReviewController extends Controller
             'rating'           => $review->rating,
             'body'             => $review->body,
             'seller_reply'     => $review->seller_reply,
-            'seller_replied_at'=> $review->seller_replied_at,
+            'seller_replied_at' => $review->seller_replied_at,
             'is_visible'       => $review->is_visible,
             'created_at'       => $review->created_at,
             'buyer'            => $review->buyer ? [

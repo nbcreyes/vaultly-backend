@@ -27,6 +27,9 @@ use Illuminate\Support\Str;
  */
 class OrderService
 {
+    public function __construct(
+        private readonly NotificationService $notifications,
+    ) {}
     /**
      * Create a pending order before sending the buyer to PayPal.
      *
@@ -60,9 +63,9 @@ class OrderService
                 'order',
                 fn($q) => $q->where('buyer_id', $buyerId)->where('status', 'completed')
             )
-            ->where('product_id', $product->id)
-            ->where('status', 'active')
-            ->exists();
+                ->where('product_id', $product->id)
+                ->where('status', 'active')
+                ->exists();
 
             if ($alreadyPurchased) {
                 throw new \InvalidArgumentException(
@@ -200,6 +203,22 @@ class OrderService
 
                 // Generate initial download token for this item
                 $this->generateDownloadToken($item, $order->buyer_id);
+                // Notify buyer
+                $this->notifications->orderConfirmed(
+                    $order->buyer_id,
+                    $order->order_number,
+                    $order->id
+                );
+
+                // Notify each seller
+                foreach ($order->items as $item) {
+                    $this->notifications->newSale(
+                        $item->seller_id,
+                        $item->product->title,
+                        $item->product_id,
+                        $item->seller_earnings
+                    );
+                }
             }
         });
 
