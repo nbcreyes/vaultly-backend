@@ -4,10 +4,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Browse\BrowseController;
+use App\Http\Controllers\Api\Buyer\CheckoutController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Seller\SellerProductController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
+use App\Http\Controllers\Api\Webhook\PayPalWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,15 +38,20 @@ Route::prefix('v1')->group(function () {
     });
 
     // -------------------------------------------------------------------------
+    // PayPal webhook — public, no auth, signature verified internally
+    // -------------------------------------------------------------------------
+    Route::post('/payments/webhook', [PayPalWebhookController::class, 'handle']);
+
+    // -------------------------------------------------------------------------
     // Public browsing routes — no authentication required
     // -------------------------------------------------------------------------
     Route::prefix('browse')->group(function () {
-        Route::get('/featured',                       [BrowseController::class, 'featured']);
-        Route::get('/categories',                     [BrowseController::class, 'categories']);
-        Route::get('/categories/{slug}/products',     [BrowseController::class, 'categoryProducts']);
-        Route::get('/products',                       [BrowseController::class, 'products']);
-        Route::get('/products/{slug}',                [BrowseController::class, 'productDetail']);
-        Route::get('/stores/{slug}',                  [BrowseController::class, 'store']);
+        Route::get('/featured',                   [BrowseController::class, 'featured']);
+        Route::get('/categories',                 [BrowseController::class, 'categories']);
+        Route::get('/categories/{slug}/products', [BrowseController::class, 'categoryProducts']);
+        Route::get('/products',                   [BrowseController::class, 'products']);
+        Route::get('/products/{slug}',            [BrowseController::class, 'productDetail']);
+        Route::get('/stores/{slug}',              [BrowseController::class, 'store']);
     });
 
     // -------------------------------------------------------------------------
@@ -69,6 +76,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
         // -------------------------------------------------------------------------
+        // Checkout — buyers only
+        // -------------------------------------------------------------------------
+        Route::prefix('checkout')->group(function () {
+            Route::post('/create',  [CheckoutController::class, 'create']);
+            Route::post('/capture', [CheckoutController::class, 'capture']);
+        });
+
+        // -------------------------------------------------------------------------
         // Seller application — buyer submits, any authenticated user checks status
         // -------------------------------------------------------------------------
         Route::prefix('seller')->group(function () {
@@ -90,15 +105,15 @@ Route::prefix('v1')->group(function () {
             Route::delete('/store/banner', [SellerStoreController::class, 'deleteBanner']);
 
             // Product management
-            Route::get('/products',                           [SellerProductController::class, 'index']);
-            Route::post('/products',                          [SellerProductController::class, 'store']);
-            Route::get('/products/{id}',                      [SellerProductController::class, 'show']);
-            Route::patch('/products/{id}',                    [SellerProductController::class, 'update']);
-            Route::post('/products/{id}/publish',             [SellerProductController::class, 'publish']);
-            Route::post('/products/{id}/unpublish',           [SellerProductController::class, 'unpublish']);
-            Route::delete('/products/{id}',                   [SellerProductController::class, 'destroy']);
-            Route::post('/products/{id}/images',              [SellerProductController::class, 'addImages']);
-            Route::delete('/products/{id}/images/{imageId}',  [SellerProductController::class, 'deleteImage']);
+            Route::get('/products',                          [SellerProductController::class, 'index']);
+            Route::post('/products',                         [SellerProductController::class, 'store']);
+            Route::get('/products/{id}',                     [SellerProductController::class, 'show']);
+            Route::patch('/products/{id}',                   [SellerProductController::class, 'update']);
+            Route::post('/products/{id}/publish',            [SellerProductController::class, 'publish']);
+            Route::post('/products/{id}/unpublish',          [SellerProductController::class, 'unpublish']);
+            Route::delete('/products/{id}',                  [SellerProductController::class, 'destroy']);
+            Route::post('/products/{id}/images',             [SellerProductController::class, 'addImages']);
+            Route::delete('/products/{id}/images/{imageId}', [SellerProductController::class, 'deleteImage']);
 
         });
 
