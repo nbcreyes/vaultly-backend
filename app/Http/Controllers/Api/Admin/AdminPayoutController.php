@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Mail;
  */
 class AdminPayoutController extends Controller
 {
+    public function __construct(
+        private readonly \App\Services\NotificationService $notifications,
+    ) {}
     /**
      * List all payout requests with optional status filter.
      *
@@ -99,6 +102,12 @@ class AdminPayoutController extends Controller
             return $this->markAsPaid($payout, $admin, $request);
         }
 
+        $this->notifications->payoutPaid(
+            $payout->seller_id,
+            $payout->amount,
+            $payout->id
+        );
+
         return $this->rejectPayout($payout, $admin, $request->admin_note);
     }
 
@@ -122,10 +131,10 @@ class AdminPayoutController extends Controller
 
         Mail::to($payout->seller->email)->send(
             new PayoutProcessedMail(
-                userName:   $payout->seller->name,
-                amount:     $payout->amount,
-                status:     'paid',
-                adminNote:  $request->admin_note,
+                userName: $payout->seller->name,
+                amount: $payout->amount,
+                status: 'paid',
+                adminNote: $request->admin_note,
                 dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
             )
         );
@@ -167,12 +176,18 @@ class AdminPayoutController extends Controller
 
         Mail::to($payout->seller->email)->send(
             new PayoutProcessedMail(
-                userName:    $payout->seller->name,
-                amount:      $payout->amount,
-                status:      'rejected',
-                adminNote:   $note,
+                userName: $payout->seller->name,
+                amount: $payout->amount,
+                status: 'rejected',
+                adminNote: $note,
                 dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
             )
+        );
+
+        $this->notifications->payoutRejected(
+            $payout->seller_id,
+            $payout->amount,
+            $payout->id
         );
 
         return ApiResponse::success([

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Buyer\CheckoutController;
 use App\Http\Controllers\Api\Buyer\DownloadController;
 use App\Http\Controllers\Api\Buyer\ReviewController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerDashboardController;
 use App\Http\Controllers\Api\Seller\SellerPayoutController;
@@ -33,13 +34,9 @@ Route::prefix('v1')->group(function () {
         return \App\Http\Responses\ApiResponse::success(null, 'pong');
     });
 
-    // PayPal webhook
     Route::post('/payments/webhook', [PayPalWebhookController::class, 'handle']);
-
-    // Secure file download
     Route::get('/downloads/{token}', [DownloadController::class, 'download']);
 
-    // Public browsing
     Route::prefix('browse')->group(function () {
         Route::get('/featured',                   [BrowseController::class, 'featured']);
         Route::get('/categories',                 [BrowseController::class, 'categories']);
@@ -50,7 +47,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/stores/{slug}',              [BrowseController::class, 'store']);
     });
 
-    // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/register',            [AuthController::class, 'register']);
         Route::post('/verify-email',        [AuthController::class, 'verifyEmail']);
@@ -60,11 +56,16 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password',      [AuthController::class, 'resetPassword']);
     });
 
-    // Authenticated routes
     Route::middleware(['auth:sanctum', 'verified.email', 'active.account'])->group(function () {
 
         Route::get('/auth/me',      [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+        // Notifications
+        Route::get('/notifications',              [NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('/notifications/read-all',    [NotificationController::class, 'markAllRead']);
+        Route::post('/notifications/{id}/read',   [NotificationController::class, 'markRead']);
 
         // Checkout
         Route::prefix('checkout')->group(function () {
@@ -102,7 +103,6 @@ Route::prefix('v1')->group(function () {
         // Seller — approved only
         Route::middleware('role.seller')->prefix('seller')->group(function () {
 
-            // Store profile
             Route::get('/store',           [SellerStoreController::class, 'show']);
             Route::patch('/store',         [SellerStoreController::class, 'update']);
             Route::post('/store/logo',     [SellerStoreController::class, 'uploadLogo']);
@@ -110,7 +110,6 @@ Route::prefix('v1')->group(function () {
             Route::post('/store/banner',   [SellerStoreController::class, 'uploadBanner']);
             Route::delete('/store/banner', [SellerStoreController::class, 'deleteBanner']);
 
-            // Products
             Route::get('/products',                          [SellerProductController::class, 'index']);
             Route::post('/products',                         [SellerProductController::class, 'store']);
             Route::get('/products/{id}',                     [SellerProductController::class, 'show']);
@@ -121,7 +120,6 @@ Route::prefix('v1')->group(function () {
             Route::post('/products/{id}/images',             [SellerProductController::class, 'addImages']);
             Route::delete('/products/{id}/images/{imageId}', [SellerProductController::class, 'deleteImage']);
 
-            // Dashboard
             Route::prefix('dashboard')->group(function () {
                 Route::get('/summary',      [SellerDashboardController::class, 'summary']);
                 Route::get('/sales',        [SellerDashboardController::class, 'sales']);
@@ -130,7 +128,6 @@ Route::prefix('v1')->group(function () {
                 Route::get('/transactions', [SellerDashboardController::class, 'transactions']);
             });
 
-            // Payouts
             Route::get('/payouts',  [SellerPayoutController::class, 'index']);
             Route::post('/payouts', [SellerPayoutController::class, 'store']);
 

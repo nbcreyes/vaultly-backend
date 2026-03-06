@@ -27,6 +27,9 @@ use Illuminate\Http\Request;
  */
 class MessageController extends Controller
 {
+    public function __construct(
+        private readonly \App\Services\NotificationService $notifications,
+    ) {}
     /**
      * List all conversations for the authenticated user.
      *
@@ -41,9 +44,9 @@ class MessageController extends Controller
 
         // Get all orders this user is involved in that have messages
         $threads = Message::where(function ($q) use ($userId) {
-                $q->where('sender_id', $userId)
-                  ->orWhere('recipient_id', $userId);
-            })
+            $q->where('sender_id', $userId)
+                ->orWhere('recipient_id', $userId);
+        })
             ->with([
                 'order:id,order_number,buyer_id',
                 'order.buyer:id,name,avatar_url',
@@ -175,6 +178,13 @@ class MessageController extends Controller
 
         $message->load('sender:id,name,avatar_url');
 
+        $this->notifications->newMessage(
+            $recipientId,
+            $user->name,
+            $order->id,
+            $order->order_number
+        );
+
         return ApiResponse::created([
             'message' => [
                 'id'         => $message->id,
@@ -232,10 +242,10 @@ class MessageController extends Controller
             ->where('status', 'completed')
             ->where(function ($q) use ($userId) {
                 $q->where('buyer_id', $userId)
-                  ->orWhereHas(
-                      'items',
-                      fn($q) => $q->where('seller_id', $userId)
-                  );
+                    ->orWhereHas(
+                        'items',
+                        fn($q) => $q->where('seller_id', $userId)
+                    );
             })
             ->first();
     }

@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\Mail;
  */
 class AdminRefundController extends Controller
 {
+    public function __construct(
+        private readonly \App\Services\NotificationService $notifications,
+    ) {}
     /**
      * List all refund requests with optional status filter.
      *
@@ -129,8 +132,8 @@ class AdminRefundController extends Controller
             $paypalService = app(\App\Services\PayPalService::class);
             $paypalResult  = $paypalService->refundCapture(
                 captureId: $captureId,
-                amount:    $refund->amount,
-                note:      'Refund approved by Vaultly support'
+                amount: $refund->amount,
+                note: 'Refund approved by Vaultly support'
             );
         } catch (\RuntimeException $e) {
             return ApiResponse::error(
@@ -189,22 +192,36 @@ class AdminRefundController extends Controller
 
         // Email the buyer
         Mail::to($refund->buyer->email)->send(new RefundProcessedMail(
-            userName:     $refund->buyer->name,
+            userName: $refund->buyer->name,
             productTitle: $refund->orderItem->product->title,
-            amount:       $refund->amount,
-            status:       'approved',
-            adminNote:    $note,
+            amount: $refund->amount,
+            status: 'approved',
+            adminNote: $note,
             dashboardUrl: config('app.frontend_url') . '/purchases',
         ));
 
         // Email the seller
         Mail::to($refund->seller->email)->send(new RefundApprovedSellerMail(
-            sellerName:     $refund->seller->name,
-            productTitle:   $refund->orderItem->product->title,
-            amount:         $refund->amount,
+            sellerName: $refund->seller->name,
+            productTitle: $refund->orderItem->product->title,
+            amount: $refund->amount,
             deductedAmount: $refund->orderItem->seller_earnings,
-            dashboardUrl:   config('app.frontend_url') . '/seller/dashboard',
+            dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
         ));
+
+        $this->notifications->refundApproved(
+            $refund->buyer_id,
+            $refund->orderItem->product->title,
+            $refund->amount,
+            $refund->id
+        );
+
+        $this->notifications->refundDeducted(
+            $refund->seller_id,
+            $refund->orderItem->product->title,
+            $refund->orderItem->seller_earnings,
+            $refund->id
+        );
 
         return ApiResponse::success([
             'refund' => $refund->fresh(['buyer', 'seller', 'orderItem.product']),
@@ -224,13 +241,19 @@ class AdminRefundController extends Controller
         ]);
 
         Mail::to($refund->buyer->email)->send(new RefundProcessedMail(
-            userName:     $refund->buyer->name,
+            userName: $refund->buyer->name,
             productTitle: $refund->orderItem->product->title,
-            amount:       $refund->amount,
-            status:       'rejected',
-            adminNote:    $note,
+            amount: $refund->amount,
+            status: 'rejected',
+            adminNote: $note,
             dashboardUrl: config('app.frontend_url') . '/purchases',
         ));
+        
+        $this->notifications->refundRejected(
+            $refund->buyer_id,
+            $refund->orderItem->product->title,
+            $refund->id
+        );
 
         return ApiResponse::success([
             'refund' => $refund->fresh(['buyer', 'seller', 'orderItem.product']),
