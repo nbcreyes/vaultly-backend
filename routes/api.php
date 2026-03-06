@@ -3,19 +3,20 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Seller\SellerApplicationController;
+use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
 
 /*
 |--------------------------------------------------------------------------
 | Vaultly API Routes
 |--------------------------------------------------------------------------
 |
-| All routes are prefixed with /api automatically by Laravel.
-| All application routes are nested under the /v1 prefix.
-|
-| Middleware stack used on protected routes:
+| Middleware stack reference:
 |   auth:sanctum    - requires valid Bearer token
 |   verified.email  - requires email_verified_at to be set
 |   active.account  - requires status to be active
+|   role.admin      - requires role = admin
+|   role.seller     - requires role = seller
 |
 */
 
@@ -32,19 +33,19 @@ Route::prefix('v1')->group(function () {
     });
 
     // -------------------------------------------------------------------------
-    // Authentication routes (public — no token required)
+    // Authentication routes (public)
     // -------------------------------------------------------------------------
     Route::prefix('auth')->group(function () {
-        Route::post('/register',             [AuthController::class, 'register']);
-        Route::post('/verify-email',         [AuthController::class, 'verifyEmail']);
-        Route::post('/resend-verification',  [AuthController::class, 'resendVerification']);
-        Route::post('/login',                [AuthController::class, 'login']);
-        Route::post('/forgot-password',      [AuthController::class, 'forgotPassword']);
-        Route::post('/reset-password',       [AuthController::class, 'resetPassword']);
+        Route::post('/register',            [AuthController::class, 'register']);
+        Route::post('/verify-email',        [AuthController::class, 'verifyEmail']);
+        Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+        Route::post('/login',               [AuthController::class, 'login']);
+        Route::post('/forgot-password',     [AuthController::class, 'forgotPassword']);
+        Route::post('/reset-password',      [AuthController::class, 'resetPassword']);
     });
 
     // -------------------------------------------------------------------------
-    // Authenticated routes — requires valid token, verified email, active account
+    // Authenticated routes — all users (buyer, seller, admin)
     // -------------------------------------------------------------------------
     Route::middleware(['auth:sanctum', 'verified.email', 'active.account'])->group(function () {
 
@@ -52,7 +53,25 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me',      [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        // Additional authenticated routes will be added in subsequent steps
+        // -------------------------------------------------------------------------
+        // Seller application — buyer submits, any authenticated user can check status
+        // -------------------------------------------------------------------------
+        Route::prefix('seller')->group(function () {
+            Route::post('/application',  [SellerApplicationController::class, 'store']);
+            Route::get('/application',   [SellerApplicationController::class, 'show']);
+        });
+
+        // -------------------------------------------------------------------------
+        // Admin routes
+        // -------------------------------------------------------------------------
+        Route::middleware('role.admin')->prefix('admin')->group(function () {
+
+            // Seller applications
+            Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
+            Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
+            Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
+
+        });
 
     });
 

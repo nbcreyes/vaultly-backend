@@ -21,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'verified.email'  => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'active.account'  => \App\Http\Middleware\EnsureAccountIsActive::class,
+            'role.admin'      => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            'role.seller'     => \App\Http\Middleware\EnsureUserIsSeller::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -30,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        // This is the fix for the "Route [login] not defined" error.
+        // When an unauthenticated request hits an API route, return 401 JSON
+        // instead of attempting to redirect to a login page.
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error('Unauthenticated.', 401);
