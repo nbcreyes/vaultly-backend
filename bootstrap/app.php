@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exclude PayPal webhook from CSRF verification
         // PayPal cannot include a CSRF token in its webhook requests
         $middleware->validateCsrfTokens(except: [
+            'api/*',
             'api/v1/payments/webhook',
         ]);
 
