@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Buyer\DownloadController;
 use App\Http\Controllers\Api\Buyer\ReviewController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\User\ProfileController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerDashboardController;
 use App\Http\Controllers\Api\Seller\SellerPayoutController;
@@ -23,8 +24,18 @@ use App\Http\Controllers\Api\Webhook\PayPalWebhookController;
 
 /*
 |--------------------------------------------------------------------------
-| Vaultly API Routes
+| Vaultly API Routes — Final Complete Version
 |--------------------------------------------------------------------------
+|
+| All 60+ endpoints across buyer, seller, admin, and shared flows.
+|
+| Middleware reference:
+|   auth:sanctum    - valid Bearer token required
+|   verified.email  - email_verified_at must be set
+|   active.account  - status must be active
+|   role.admin      - role must be admin
+|   role.seller     - role must be seller
+|
 */
 
 Route::get('/health', [HealthController::class, 'index']);
@@ -34,6 +45,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/ping', function () {
         return \App\Http\Responses\ApiResponse::success(null, 'pong');
     });
+
+    // -------------------------------------------------------------------------
+    // Unauthenticated public endpoints
+    // -------------------------------------------------------------------------
 
     Route::post('/payments/webhook', [PayPalWebhookController::class, 'handle']);
     Route::get('/downloads/{token}', [DownloadController::class, 'download']);
@@ -57,10 +72,21 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password',      [AuthController::class, 'resetPassword']);
     });
 
+    // -------------------------------------------------------------------------
+    // Authenticated endpoints — all roles
+    // -------------------------------------------------------------------------
+
     Route::middleware(['auth:sanctum', 'verified.email', 'active.account'])->group(function () {
 
+        // Auth
         Route::get('/auth/me',      [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+        // User profile
+        Route::patch('/user/profile',         [ProfileController::class, 'update']);
+        Route::post('/user/avatar',           [ProfileController::class, 'uploadAvatar']);
+        Route::delete('/user/avatar',         [ProfileController::class, 'deleteAvatar']);
+        Route::post('/user/change-password',  [ProfileController::class, 'changePassword']);
 
         // Notifications
         Route::get('/notifications',              [NotificationController::class, 'index']);
@@ -101,9 +127,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/application',  [SellerApplicationController::class, 'show']);
         });
 
-        // Seller — approved only
+        // -------------------------------------------------------------------------
+        // Seller-only endpoints
+        // -------------------------------------------------------------------------
+
         Route::middleware('role.seller')->prefix('seller')->group(function () {
 
+            // Store profile
             Route::get('/store',           [SellerStoreController::class, 'show']);
             Route::patch('/store',         [SellerStoreController::class, 'update']);
             Route::post('/store/logo',     [SellerStoreController::class, 'uploadLogo']);
@@ -111,6 +141,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/store/banner',   [SellerStoreController::class, 'uploadBanner']);
             Route::delete('/store/banner', [SellerStoreController::class, 'deleteBanner']);
 
+            // Products
             Route::get('/products',                          [SellerProductController::class, 'index']);
             Route::post('/products',                         [SellerProductController::class, 'store']);
             Route::get('/products/{id}',                     [SellerProductController::class, 'show']);
@@ -121,6 +152,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/products/{id}/images',             [SellerProductController::class, 'addImages']);
             Route::delete('/products/{id}/images/{imageId}', [SellerProductController::class, 'deleteImage']);
 
+            // Dashboard
             Route::prefix('dashboard')->group(function () {
                 Route::get('/summary',      [SellerDashboardController::class, 'summary']);
                 Route::get('/sales',        [SellerDashboardController::class, 'sales']);
@@ -129,12 +161,16 @@ Route::prefix('v1')->group(function () {
                 Route::get('/transactions', [SellerDashboardController::class, 'transactions']);
             });
 
+            // Payouts
             Route::get('/payouts',  [SellerPayoutController::class, 'index']);
             Route::post('/payouts', [SellerPayoutController::class, 'store']);
 
         });
 
-        // Admin
+        // -------------------------------------------------------------------------
+        // Admin-only endpoints
+        // -------------------------------------------------------------------------
+
         Route::middleware('role.admin')->prefix('admin')->group(function () {
 
             // Dashboard
@@ -143,12 +179,12 @@ Route::prefix('v1')->group(function () {
             Route::get('/dashboard/top-sellers', [AdminDashboardController::class, 'topSellers']);
 
             // User management
-            Route::get('/users',                   [AdminDashboardController::class, 'users']);
-            Route::patch('/users/{id}/status',     [AdminDashboardController::class, 'updateUserStatus']);
+            Route::get('/users',               [AdminDashboardController::class, 'users']);
+            Route::patch('/users/{id}/status', [AdminDashboardController::class, 'updateUserStatus']);
 
             // Product moderation
-            Route::get('/products',                      [AdminDashboardController::class, 'products']);
-            Route::patch('/products/{id}/status',        [AdminDashboardController::class, 'updateProductStatus']);
+            Route::get('/products',                   [AdminDashboardController::class, 'products']);
+            Route::patch('/products/{id}/status',     [AdminDashboardController::class, 'updateProductStatus']);
 
             // Seller applications
             Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
