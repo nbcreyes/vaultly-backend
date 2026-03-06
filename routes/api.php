@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
+use App\Http\Controllers\Api\Seller\SellerProductController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
 
 /*
@@ -63,15 +64,29 @@ Route::prefix('v1')->group(function () {
         });
 
         // -------------------------------------------------------------------------
-        // Seller store management — approved sellers only
+        // Seller routes — approved sellers only
         // -------------------------------------------------------------------------
         Route::middleware('role.seller')->prefix('seller')->group(function () {
-            Route::get('/store',            [SellerStoreController::class, 'show']);
-            Route::patch('/store',          [SellerStoreController::class, 'update']);
-            Route::post('/store/logo',      [SellerStoreController::class, 'uploadLogo']);
-            Route::delete('/store/logo',    [SellerStoreController::class, 'deleteLogo']);
-            Route::post('/store/banner',    [SellerStoreController::class, 'uploadBanner']);
-            Route::delete('/store/banner',  [SellerStoreController::class, 'deleteBanner']);
+
+            // Store profile
+            Route::get('/store',           [SellerStoreController::class, 'show']);
+            Route::patch('/store',         [SellerStoreController::class, 'update']);
+            Route::post('/store/logo',     [SellerStoreController::class, 'uploadLogo']);
+            Route::delete('/store/logo',   [SellerStoreController::class, 'deleteLogo']);
+            Route::post('/store/banner',   [SellerStoreController::class, 'uploadBanner']);
+            Route::delete('/store/banner', [SellerStoreController::class, 'deleteBanner']);
+
+            // Product management
+            Route::get('/products',                             [SellerProductController::class, 'index']);
+            Route::post('/products',                            [SellerProductController::class, 'store']);
+            Route::get('/products/{id}',                        [SellerProductController::class, 'show']);
+            Route::patch('/products/{id}',                      [SellerProductController::class, 'update']);
+            Route::post('/products/{id}/publish',               [SellerProductController::class, 'publish']);
+            Route::post('/products/{id}/unpublish',             [SellerProductController::class, 'unpublish']);
+            Route::delete('/products/{id}',                     [SellerProductController::class, 'destroy']);
+            Route::post('/products/{id}/images',                [SellerProductController::class, 'addImages']);
+            Route::delete('/products/{id}/images/{imageId}',   [SellerProductController::class, 'deleteImage']);
+
         });
 
         // -------------------------------------------------------------------------
@@ -80,9 +95,9 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role.admin')->prefix('admin')->group(function () {
 
             // Seller applications
-            Route::get('/seller-applications',                [AdminSellerApplicationController::class, 'index']);
-            Route::get('/seller-applications/{id}',           [AdminSellerApplicationController::class, 'show']);
-            Route::patch('/seller-applications/{id}/review',  [AdminSellerApplicationController::class, 'review']);
+            Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
+            Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
+            Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
 
         });
 
