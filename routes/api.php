@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Browse\BrowseController;
 use App\Http\Controllers\Api\Buyer\CheckoutController;
 use App\Http\Controllers\Api\Buyer\DownloadController;
+use App\Http\Controllers\Api\Buyer\ReviewController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerDashboardController;
 use App\Http\Controllers\Api\Seller\SellerPayoutController;
@@ -37,12 +38,13 @@ Route::prefix('v1')->group(function () {
 
     // Public browsing
     Route::prefix('browse')->group(function () {
-        Route::get('/featured',                   [BrowseController::class, 'featured']);
-        Route::get('/categories',                 [BrowseController::class, 'categories']);
-        Route::get('/categories/{slug}/products', [BrowseController::class, 'categoryProducts']);
-        Route::get('/products',                   [BrowseController::class, 'products']);
-        Route::get('/products/{slug}',            [BrowseController::class, 'productDetail']);
-        Route::get('/stores/{slug}',              [BrowseController::class, 'store']);
+        Route::get('/featured',                        [BrowseController::class, 'featured']);
+        Route::get('/categories',                      [BrowseController::class, 'categories']);
+        Route::get('/categories/{slug}/products',      [BrowseController::class, 'categoryProducts']);
+        Route::get('/products',                        [BrowseController::class, 'products']);
+        Route::get('/products/{slug}',                 [BrowseController::class, 'productDetail']);
+        Route::get('/products/{slug}/reviews',         [ReviewController::class, 'index']);
+        Route::get('/stores/{slug}',                   [BrowseController::class, 'store']);
     });
 
     // Auth
@@ -72,6 +74,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/purchases',                           [DownloadController::class, 'purchases']);
             Route::post('/downloads/{orderItemId}/regenerate', [DownloadController::class, 'regenerate']);
         });
+
+        // Reviews
+        Route::post('/reviews',              [ReviewController::class, 'store']);
+        Route::delete('/reviews/{id}',       [ReviewController::class, 'destroy']);
+        Route::patch('/reviews/{id}/reply',  [ReviewController::class, 'reply']);
 
         // Seller application
         Route::prefix('seller')->group(function () {
@@ -125,9 +132,9 @@ Route::prefix('v1')->group(function () {
             Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
 
             // Payouts
-            Route::get('/payouts',                  [AdminPayoutController::class, 'index']);
-            Route::get('/payouts/{id}',             [AdminPayoutController::class, 'show']);
-            Route::patch('/payouts/{id}/process',   [AdminPayoutController::class, 'process']);
+            Route::get('/payouts',                [AdminPayoutController::class, 'index']);
+            Route::get('/payouts/{id}',           [AdminPayoutController::class, 'show']);
+            Route::patch('/payouts/{id}/process', [AdminPayoutController::class, 'process']);
 
         });
 
