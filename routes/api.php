@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Browse\BrowseController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Seller\SellerProductController;
@@ -32,6 +33,18 @@ Route::prefix('v1')->group(function () {
     // -------------------------------------------------------------------------
     Route::get('/ping', function () {
         return \App\Http\Responses\ApiResponse::success(null, 'pong');
+    });
+
+    // -------------------------------------------------------------------------
+    // Public browsing routes — no authentication required
+    // -------------------------------------------------------------------------
+    Route::prefix('browse')->group(function () {
+        Route::get('/featured',                       [BrowseController::class, 'featured']);
+        Route::get('/categories',                     [BrowseController::class, 'categories']);
+        Route::get('/categories/{slug}/products',     [BrowseController::class, 'categoryProducts']);
+        Route::get('/products',                       [BrowseController::class, 'products']);
+        Route::get('/products/{slug}',                [BrowseController::class, 'productDetail']);
+        Route::get('/stores/{slug}',                  [BrowseController::class, 'store']);
     });
 
     // -------------------------------------------------------------------------
@@ -77,15 +90,15 @@ Route::prefix('v1')->group(function () {
             Route::delete('/store/banner', [SellerStoreController::class, 'deleteBanner']);
 
             // Product management
-            Route::get('/products',                             [SellerProductController::class, 'index']);
-            Route::post('/products',                            [SellerProductController::class, 'store']);
-            Route::get('/products/{id}',                        [SellerProductController::class, 'show']);
-            Route::patch('/products/{id}',                      [SellerProductController::class, 'update']);
-            Route::post('/products/{id}/publish',               [SellerProductController::class, 'publish']);
-            Route::post('/products/{id}/unpublish',             [SellerProductController::class, 'unpublish']);
-            Route::delete('/products/{id}',                     [SellerProductController::class, 'destroy']);
-            Route::post('/products/{id}/images',                [SellerProductController::class, 'addImages']);
-            Route::delete('/products/{id}/images/{imageId}',   [SellerProductController::class, 'deleteImage']);
+            Route::get('/products',                           [SellerProductController::class, 'index']);
+            Route::post('/products',                          [SellerProductController::class, 'store']);
+            Route::get('/products/{id}',                      [SellerProductController::class, 'show']);
+            Route::patch('/products/{id}',                    [SellerProductController::class, 'update']);
+            Route::post('/products/{id}/publish',             [SellerProductController::class, 'publish']);
+            Route::post('/products/{id}/unpublish',           [SellerProductController::class, 'unpublish']);
+            Route::delete('/products/{id}',                   [SellerProductController::class, 'destroy']);
+            Route::post('/products/{id}/images',              [SellerProductController::class, 'addImages']);
+            Route::delete('/products/{id}/images/{imageId}',  [SellerProductController::class, 'deleteImage']);
 
         });
 
