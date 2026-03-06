@@ -16,9 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // Stateful domains for Sanctum SPA authentication
         $middleware->statefulApi();
+
+        // Register custom middleware aliases for use in route definitions
+        $middleware->alias([
+            'verified.email'  => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'active.account'  => \App\Http\Middleware\EnsureAccountIsActive::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Return JSON error responses for all API routes
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::validationError($e->errors());
