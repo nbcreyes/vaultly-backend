@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Browse\BrowseController;
 use App\Http\Controllers\Api\Buyer\CheckoutController;
 use App\Http\Controllers\Api\Buyer\DownloadController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
+use App\Http\Controllers\Api\Seller\SellerDashboardController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Seller\SellerProductController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
@@ -45,7 +46,6 @@ Route::prefix('v1')->group(function () {
 
     // -------------------------------------------------------------------------
     // Secure file download — token-based, no Bearer auth required
-    // The token itself is the authentication mechanism
     // -------------------------------------------------------------------------
     Route::get('/downloads/{token}', [DownloadController::class, 'download']);
 
@@ -83,7 +83,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
         // -------------------------------------------------------------------------
-        // Checkout — buyers only
+        // Checkout
         // -------------------------------------------------------------------------
         Route::prefix('checkout')->group(function () {
             Route::post('/create',  [CheckoutController::class, 'create']);
@@ -94,12 +94,12 @@ Route::prefix('v1')->group(function () {
         // Buyer purchase history and download management
         // -------------------------------------------------------------------------
         Route::prefix('buyer')->group(function () {
-            Route::get('/purchases',                          [DownloadController::class, 'purchases']);
-            Route::post('/downloads/{orderItemId}/regenerate',[DownloadController::class, 'regenerate']);
+            Route::get('/purchases',                           [DownloadController::class, 'purchases']);
+            Route::post('/downloads/{orderItemId}/regenerate', [DownloadController::class, 'regenerate']);
         });
 
         // -------------------------------------------------------------------------
-        // Seller application — buyer submits, any authenticated user checks status
+        // Seller application
         // -------------------------------------------------------------------------
         Route::prefix('seller')->group(function () {
             Route::post('/application', [SellerApplicationController::class, 'store']);
@@ -129,6 +129,15 @@ Route::prefix('v1')->group(function () {
             Route::delete('/products/{id}',                  [SellerProductController::class, 'destroy']);
             Route::post('/products/{id}/images',             [SellerProductController::class, 'addImages']);
             Route::delete('/products/{id}/images/{imageId}', [SellerProductController::class, 'deleteImage']);
+
+            // Dashboard
+            Route::prefix('dashboard')->group(function () {
+                Route::get('/summary',      [SellerDashboardController::class, 'summary']);
+                Route::get('/sales',        [SellerDashboardController::class, 'sales']);
+                Route::get('/revenue',      [SellerDashboardController::class, 'revenue']);
+                Route::get('/top-products', [SellerDashboardController::class, 'topProducts']);
+                Route::get('/transactions', [SellerDashboardController::class, 'transactions']);
+            });
 
         });
 
