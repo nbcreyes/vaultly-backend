@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
+use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
 
 /*
@@ -45,7 +46,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // -------------------------------------------------------------------------
-    // Authenticated routes — all users (buyer, seller, admin)
+    // Authenticated routes — all roles
     // -------------------------------------------------------------------------
     Route::middleware(['auth:sanctum', 'verified.email', 'active.account'])->group(function () {
 
@@ -54,11 +55,23 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
         // -------------------------------------------------------------------------
-        // Seller application — buyer submits, any authenticated user can check status
+        // Seller application — buyer submits, any authenticated user checks status
         // -------------------------------------------------------------------------
         Route::prefix('seller')->group(function () {
-            Route::post('/application',  [SellerApplicationController::class, 'store']);
-            Route::get('/application',   [SellerApplicationController::class, 'show']);
+            Route::post('/application', [SellerApplicationController::class, 'store']);
+            Route::get('/application',  [SellerApplicationController::class, 'show']);
+        });
+
+        // -------------------------------------------------------------------------
+        // Seller store management — approved sellers only
+        // -------------------------------------------------------------------------
+        Route::middleware('role.seller')->prefix('seller')->group(function () {
+            Route::get('/store',            [SellerStoreController::class, 'show']);
+            Route::patch('/store',          [SellerStoreController::class, 'update']);
+            Route::post('/store/logo',      [SellerStoreController::class, 'uploadLogo']);
+            Route::delete('/store/logo',    [SellerStoreController::class, 'deleteLogo']);
+            Route::post('/store/banner',    [SellerStoreController::class, 'uploadBanner']);
+            Route::delete('/store/banner',  [SellerStoreController::class, 'deleteBanner']);
         });
 
         // -------------------------------------------------------------------------
@@ -67,9 +80,9 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role.admin')->prefix('admin')->group(function () {
 
             // Seller applications
-            Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
-            Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
-            Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
+            Route::get('/seller-applications',                [AdminSellerApplicationController::class, 'index']);
+            Route::get('/seller-applications/{id}',           [AdminSellerApplicationController::class, 'show']);
+            Route::patch('/seller-applications/{id}/review',  [AdminSellerApplicationController::class, 'review']);
 
         });
 

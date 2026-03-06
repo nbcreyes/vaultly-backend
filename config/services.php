@@ -7,31 +7,81 @@ return [
     | Third Party Services
     |--------------------------------------------------------------------------
     |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
+    | This file stores the credentials for third party services used by
+    | the Vaultly platform. Credentials are always read from .env and
+    | never hardcoded here.
     |
     */
 
-    'postmark' => [
-        'key' => env('POSTMARK_API_KEY'),
+    'mailgun' => [
+        'domain'   => env('MAILGUN_DOMAIN'),
+        'secret'   => env('MAILGUN_SECRET'),
+        'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
+        'scheme'   => 'https',
     ],
 
-    'resend' => [
-        'key' => env('RESEND_API_KEY'),
+    'postmark' => [
+        'token' => env('POSTMARK_TOKEN'),
     ],
 
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
+        'key'    => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'slack' => [
-        'notifications' => [
-            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
-            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+    /*
+    |--------------------------------------------------------------------------
+    | Cloudinary
+    |--------------------------------------------------------------------------
+    |
+    | Used for storing all user-uploaded images and product files.
+    | The free tier provides 25GB storage and 25GB bandwidth per month.
+    |
+    */
+
+    'cloudinary' => [
+        'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+        'api_key'    => env('CLOUDINARY_API_KEY'),
+        'api_secret' => env('CLOUDINARY_API_SECRET'),
+        'url'        => env('CLOUDINARY_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pusher
+    |--------------------------------------------------------------------------
+    |
+    | Used for real-time notifications via Laravel Echo.
+    |
+    */
+
+    'pusher' => [
+        'app_id'  => env('PUSHER_APP_ID'),
+        'key'     => env('PUSHER_APP_KEY'),
+        'secret'  => env('PUSHER_APP_SECRET'),
+        'cluster' => env('PUSHER_APP_CLUSTER', 'mt1'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | PayPal
+    |--------------------------------------------------------------------------
+    |
+    | Used for checkout and payouts. Sandbox credentials are used during
+    | development. Only the keys change when switching to live.
+    |
+    */
+
+    'paypal' => [
+        'mode'              => env('PAYPAL_MODE', 'sandbox'),
+        'sandbox' => [
+            'client_id'     => env('PAYPAL_SANDBOX_CLIENT_ID'),
+            'client_secret' => env('PAYPAL_SANDBOX_CLIENT_SECRET'),
+        ],
+        'live' => [
+            'client_id'     => env('PAYPAL_LIVE_CLIENT_ID'),
+            'client_secret' => env('PAYPAL_LIVE_CLIENT_SECRET'),
         ],
     ],
 
