@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\Auth\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -9,26 +10,50 @@ use App\Http\Controllers\Api\HealthController;
 |--------------------------------------------------------------------------
 |
 | All routes are prefixed with /api automatically by Laravel.
-| Authentication is handled via Laravel Sanctum bearer tokens.
+| All application routes are nested under the /v1 prefix.
 |
-| Route groups are organized in this order:
-|   1. Public routes (no authentication required)
-|   2. Auth routes (register, login, etc.)
-|   3. Authenticated buyer routes
-|   4. Authenticated seller routes
-|   5. Authenticated admin routes
+| Middleware stack used on protected routes:
+|   auth:sanctum    - requires valid Bearer token
+|   verified.email  - requires email_verified_at to be set
+|   active.account  - requires status to be active
 |
 */
 
-// Health check — used by Railway and monitoring tools
+// Health check
 Route::get('/health', [HealthController::class, 'index']);
 
-// API version prefix for all application routes
 Route::prefix('v1')->group(function () {
 
-    // Placeholder — routes will be added in subsequent steps
+    // -------------------------------------------------------------------------
+    // Public ping
+    // -------------------------------------------------------------------------
     Route::get('/ping', function () {
         return \App\Http\Responses\ApiResponse::success(null, 'pong');
+    });
+
+    // -------------------------------------------------------------------------
+    // Authentication routes (public — no token required)
+    // -------------------------------------------------------------------------
+    Route::prefix('auth')->group(function () {
+        Route::post('/register',             [AuthController::class, 'register']);
+        Route::post('/verify-email',         [AuthController::class, 'verifyEmail']);
+        Route::post('/resend-verification',  [AuthController::class, 'resendVerification']);
+        Route::post('/login',                [AuthController::class, 'login']);
+        Route::post('/forgot-password',      [AuthController::class, 'forgotPassword']);
+        Route::post('/reset-password',       [AuthController::class, 'resetPassword']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Authenticated routes — requires valid token, verified email, active account
+    // -------------------------------------------------------------------------
+    Route::middleware(['auth:sanctum', 'verified.email', 'active.account'])->group(function () {
+
+        // Auth
+        Route::get('/auth/me',      [AuthController::class, 'me']);
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+        // Additional authenticated routes will be added in subsequent steps
+
     });
 
 });
