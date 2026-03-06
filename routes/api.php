@@ -8,50 +8,34 @@ use App\Http\Controllers\Api\Buyer\CheckoutController;
 use App\Http\Controllers\Api\Buyer\DownloadController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerDashboardController;
+use App\Http\Controllers\Api\Seller\SellerPayoutController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Seller\SellerProductController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
+use App\Http\Controllers\Api\Admin\AdminPayoutController;
 use App\Http\Controllers\Api\Webhook\PayPalWebhookController;
 
 /*
 |--------------------------------------------------------------------------
 | Vaultly API Routes
 |--------------------------------------------------------------------------
-|
-| Middleware stack reference:
-|   auth:sanctum    - requires valid Bearer token
-|   verified.email  - requires email_verified_at to be set
-|   active.account  - requires status to be active
-|   role.admin      - requires role = admin
-|   role.seller     - requires role = seller
-|
 */
 
-// Health check
 Route::get('/health', [HealthController::class, 'index']);
 
 Route::prefix('v1')->group(function () {
 
-    // -------------------------------------------------------------------------
-    // Public ping
-    // -------------------------------------------------------------------------
     Route::get('/ping', function () {
         return \App\Http\Responses\ApiResponse::success(null, 'pong');
     });
 
-    // -------------------------------------------------------------------------
-    // PayPal webhook — public, no auth, signature verified internally
-    // -------------------------------------------------------------------------
+    // PayPal webhook
     Route::post('/payments/webhook', [PayPalWebhookController::class, 'handle']);
 
-    // -------------------------------------------------------------------------
-    // Secure file download — token-based, no Bearer auth required
-    // -------------------------------------------------------------------------
+    // Secure file download
     Route::get('/downloads/{token}', [DownloadController::class, 'download']);
 
-    // -------------------------------------------------------------------------
-    // Public browsing routes — no authentication required
-    // -------------------------------------------------------------------------
+    // Public browsing
     Route::prefix('browse')->group(function () {
         Route::get('/featured',                   [BrowseController::class, 'featured']);
         Route::get('/categories',                 [BrowseController::class, 'categories']);
@@ -61,9 +45,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/stores/{slug}',              [BrowseController::class, 'store']);
     });
 
-    // -------------------------------------------------------------------------
-    // Authentication routes (public)
-    // -------------------------------------------------------------------------
+    // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/register',            [AuthController::class, 'register']);
         Route::post('/verify-email',        [AuthController::class, 'verifyEmail']);
@@ -73,42 +55,31 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password',      [AuthController::class, 'resetPassword']);
     });
 
-    // -------------------------------------------------------------------------
-    // Authenticated routes — all roles
-    // -------------------------------------------------------------------------
+    // Authenticated routes
     Route::middleware(['auth:sanctum', 'verified.email', 'active.account'])->group(function () {
 
-        // Auth
         Route::get('/auth/me',      [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        // -------------------------------------------------------------------------
         // Checkout
-        // -------------------------------------------------------------------------
         Route::prefix('checkout')->group(function () {
             Route::post('/create',  [CheckoutController::class, 'create']);
             Route::post('/capture', [CheckoutController::class, 'capture']);
         });
 
-        // -------------------------------------------------------------------------
-        // Buyer purchase history and download management
-        // -------------------------------------------------------------------------
+        // Buyer
         Route::prefix('buyer')->group(function () {
             Route::get('/purchases',                           [DownloadController::class, 'purchases']);
             Route::post('/downloads/{orderItemId}/regenerate', [DownloadController::class, 'regenerate']);
         });
 
-        // -------------------------------------------------------------------------
         // Seller application
-        // -------------------------------------------------------------------------
         Route::prefix('seller')->group(function () {
             Route::post('/application', [SellerApplicationController::class, 'store']);
             Route::get('/application',  [SellerApplicationController::class, 'show']);
         });
 
-        // -------------------------------------------------------------------------
-        // Seller routes — approved sellers only
-        // -------------------------------------------------------------------------
+        // Seller — approved only
         Route::middleware('role.seller')->prefix('seller')->group(function () {
 
             // Store profile
@@ -119,7 +90,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/store/banner',   [SellerStoreController::class, 'uploadBanner']);
             Route::delete('/store/banner', [SellerStoreController::class, 'deleteBanner']);
 
-            // Product management
+            // Products
             Route::get('/products',                          [SellerProductController::class, 'index']);
             Route::post('/products',                         [SellerProductController::class, 'store']);
             Route::get('/products/{id}',                     [SellerProductController::class, 'show']);
@@ -139,17 +110,24 @@ Route::prefix('v1')->group(function () {
                 Route::get('/transactions', [SellerDashboardController::class, 'transactions']);
             });
 
+            // Payouts
+            Route::get('/payouts',  [SellerPayoutController::class, 'index']);
+            Route::post('/payouts', [SellerPayoutController::class, 'store']);
+
         });
 
-        // -------------------------------------------------------------------------
-        // Admin routes
-        // -------------------------------------------------------------------------
+        // Admin
         Route::middleware('role.admin')->prefix('admin')->group(function () {
 
             // Seller applications
             Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
             Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
             Route::patch('/seller-applications/{id}/review', [AdminSellerApplicationController::class, 'review']);
+
+            // Payouts
+            Route::get('/payouts',                  [AdminPayoutController::class, 'index']);
+            Route::get('/payouts/{id}',             [AdminPayoutController::class, 'show']);
+            Route::patch('/payouts/{id}/process',   [AdminPayoutController::class, 'process']);
 
         });
 
