@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Browse\BrowseController;
 use App\Http\Controllers\Api\Buyer\CheckoutController;
+use App\Http\Controllers\Api\Buyer\DownloadController;
 use App\Http\Controllers\Api\Seller\SellerApplicationController;
 use App\Http\Controllers\Api\Seller\SellerStoreController;
 use App\Http\Controllers\Api\Seller\SellerProductController;
@@ -41,6 +42,12 @@ Route::prefix('v1')->group(function () {
     // PayPal webhook — public, no auth, signature verified internally
     // -------------------------------------------------------------------------
     Route::post('/payments/webhook', [PayPalWebhookController::class, 'handle']);
+
+    // -------------------------------------------------------------------------
+    // Secure file download — token-based, no Bearer auth required
+    // The token itself is the authentication mechanism
+    // -------------------------------------------------------------------------
+    Route::get('/downloads/{token}', [DownloadController::class, 'download']);
 
     // -------------------------------------------------------------------------
     // Public browsing routes — no authentication required
@@ -81,6 +88,14 @@ Route::prefix('v1')->group(function () {
         Route::prefix('checkout')->group(function () {
             Route::post('/create',  [CheckoutController::class, 'create']);
             Route::post('/capture', [CheckoutController::class, 'capture']);
+        });
+
+        // -------------------------------------------------------------------------
+        // Buyer purchase history and download management
+        // -------------------------------------------------------------------------
+        Route::prefix('buyer')->group(function () {
+            Route::get('/purchases',                          [DownloadController::class, 'purchases']);
+            Route::post('/downloads/{orderItemId}/regenerate',[DownloadController::class, 'regenerate']);
         });
 
         // -------------------------------------------------------------------------
