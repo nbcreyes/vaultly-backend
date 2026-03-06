@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int         $product_id
  * @property int         $buyer_id
  * @property int         $order_item_id
- * @property int         $rating           1 to 5
+ * @property int         $rating
  * @property string      $body
  * @property string|null $seller_reply
  * @property \Carbon\Carbon|null $seller_replied_at
@@ -50,27 +50,46 @@ class Review extends Model
     // Relationships
     // -------------------------------------------------------------------------
 
-    /**
-     * The product being reviewed.
-     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    /**
-     * The buyer who wrote this review.
-     */
     public function buyer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'buyer_id');
     }
 
-    /**
-     * The order item this review is associated with.
-     */
     public function orderItem(): BelongsTo
     {
         return $this->belongsTo(OrderItem::class);
+    }
+
+    // -------------------------------------------------------------------------
+    // Aggregate helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Recalculate and update the aggregate rating on a product.
+     *
+     * Called after every review create, update, or hide operation
+     * to keep the product's average_rating and review_count accurate.
+     *
+     * Only visible reviews are counted in the aggregate.
+     *
+     * @param  int $productId
+     * @return void
+     */
+    public static function recalculateForProduct(int $productId): void
+    {
+        $aggregate = static::where('product_id', $productId)
+            ->where('is_visible', true)
+            ->selectRaw('COUNT(*) as count, AVG(rating) as average')
+            ->first();
+
+        Product::where('id', $productId)->update([
+            'review_count'   => $aggregate->count ?? 0,
+            'average_rating' => $aggregate->average ? round((float) $aggregate->average, 2) : 0.00,
+        ]);
     }
 }
