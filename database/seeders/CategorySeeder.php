@@ -2,68 +2,26 @@
 
 namespace Database\Seeders;
 
+use App\Models\Category;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
-/**
- * CategorySeeder
- *
- * Seeds the five core product categories for Vaultly.
- * Run once on fresh deployment. Safe to re-run (uses upsert).
- */
 class CategorySeeder extends Seeder
 {
     public function run(): void
     {
         $categories = [
-            [
-                'name'        => 'Code and Scripts',
-                'slug'        => 'code-and-scripts',
-                'description' => 'Themes, plugins, components, templates, and developer tools.',
-                'icon'        => 'code',
-                'sort_order'  => 1,
-            ],
-            [
-                'name'        => 'Design Assets',
-                'slug'        => 'design-assets',
-                'description' => 'UI kits, icons, illustrations, mockups, and fonts.',
-                'icon'        => 'palette',
-                'sort_order'  => 2,
-            ],
-            [
-                'name'        => 'Documents and Templates',
-                'slug'        => 'documents-and-templates',
-                'description' => 'Resume templates, business documents, and presentations.',
-                'icon'        => 'file-text',
-                'sort_order'  => 3,
-            ],
-            [
-                'name'        => 'Media',
-                'slug'        => 'media',
-                'description' => 'Music, sound effects, stock photos, and videos.',
-                'icon'        => 'film',
-                'sort_order'  => 4,
-            ],
-            [
-                'name'        => 'Education',
-                'slug'        => 'education',
-                'description' => 'Ebooks, guides, and courses in PDF or ZIP format.',
-                'icon'        => 'book-open',
-                'sort_order'  => 5,
-            ],
+            ['name' => 'Code & Scripts',    'slug' => 'code',          'icon' => '💻', 'description' => 'PHP, JavaScript, Python scripts and full applications'],
+            ['name' => 'Design Assets',     'slug' => 'design',        'icon' => '🎨', 'description' => 'UI kits, icons, illustrations, and graphic templates'],
+            ['name' => 'Education',         'slug' => 'education',     'icon' => '📚', 'description' => 'Courses, ebooks, guides, and learning resources'],
+            ['name' => 'Fonts',             'slug' => 'fonts',         'icon' => '✍️',  'description' => 'Premium typefaces and font families'],
+            ['name' => 'Templates',         'slug' => 'templates',     'icon' => '📄', 'description' => 'Resume, business, and document templates'],
+            ['name' => 'Audio & Music',     'slug' => 'audio',         'icon' => '🎵', 'description' => 'Sound effects, music tracks, and audio assets'],
+            ['name' => 'Video',             'slug' => 'video',         'icon' => '🎬', 'description' => 'Motion graphics, transitions, and video templates'],
+            ['name' => 'Photography',       'slug' => 'photography',   'icon' => '📷', 'description' => 'Stock photos, presets, and photography resources'],
         ];
 
-        foreach ($categories as $category) {
-            DB::table('categories')->upsert(
-                array_merge($category, [
-                    'is_active'  => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]),
-                ['slug'],
-                ['name', 'description', 'icon', 'sort_order', 'updated_at']
-            );
+        foreach ($categories as $cat) {
+            Category::updateOrCreate(['slug' => $cat['slug']], $cat);
         }
     }
 }

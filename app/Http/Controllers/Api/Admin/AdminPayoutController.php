@@ -10,6 +10,7 @@ use App\Models\Payout;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -18,8 +19,8 @@ use Illuminate\Support\Facades\Mail;
  * Admin endpoints for managing seller payout requests.
  *
  * Endpoints:
- *   GET   /api/v1/admin/payouts          - list all payout requests
- *   GET   /api/v1/admin/payouts/{id}     - view single payout
+ *   GET   /api/v1/admin/payouts              - list all payout requests
+ *   GET   /api/v1/admin/payouts/{id}         - view single payout
  *   PATCH /api/v1/admin/payouts/{id}/process - mark as paid or rejected
  */
 class AdminPayoutController extends Controller
@@ -27,6 +28,7 @@ class AdminPayoutController extends Controller
     public function __construct(
         private readonly \App\Services\NotificationService $notifications,
     ) {}
+
     /**
      * List all payout requests with optional status filter.
      *
@@ -69,16 +71,6 @@ class AdminPayoutController extends Controller
     /**
      * Process a payout request — mark as paid or rejected.
      *
-     * On paid:
-     *   - Status updated to paid
-     *   - PayPal payout ID stored
-     *   - Seller notified by email
-     *
-     * On rejected:
-     *   - Status updated to rejected
-     *   - Balance returned to seller
-     *   - Seller notified by email
-     *
      * PATCH /api/v1/admin/payouts/{id}/process
      */
     public function process(ProcessPayoutRequest $request, string $id): JsonResponse
@@ -102,22 +94,11 @@ class AdminPayoutController extends Controller
             return $this->markAsPaid($payout, $admin, $request);
         }
 
-        $this->notifications->payoutPaid(
-            $payout->seller_id,
-            $payout->amount,
-            $payout->id
-        );
-
         return $this->rejectPayout($payout, $admin, $request->admin_note);
     }
 
     /**
      * Mark a payout as paid.
-     *
-     * @param  Payout  $payout
-     * @param  \App\Models\User $admin
-     * @param  ProcessPayoutRequest $request
-     * @return JsonResponse
      */
     private function markAsPaid(Payout $payout, $admin, ProcessPayoutRequest $request): JsonResponse
     {
@@ -129,15 +110,29 @@ class AdminPayoutController extends Controller
             'processed_at'     => now(),
         ]);
 
-        Mail::to($payout->seller->email)->send(
-            new PayoutProcessedMail(
-                userName: $payout->seller->name,
-                amount: $payout->amount,
-                status: 'paid',
-                adminNote: $request->admin_note,
-                dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
-            )
-        );
+        try {
+            Mail::to($payout->seller->email)->send(
+                new PayoutProcessedMail(
+                    userName: $payout->seller->name,
+                    amount: $payout->amount,
+                    status: 'paid',
+                    adminNote: $request->admin_note,
+                    dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
+                )
+            );
+        } catch (\Exception $e) {
+            Log::warning('Payout paid email failed: ' . $e->getMessage());
+        }
+
+        try {
+            $this->notifications->payoutPaid(
+                $payout->seller_id,
+                $payout->amount,
+                $payout->id
+            );
+        } catch (\Exception $e) {
+            Log::warning('Payout paid notification failed: ' . $e->getMessage());
+        }
 
         return ApiResponse::success([
             'payout' => $payout->fresh(['seller', 'processor']),
@@ -146,11 +141,6 @@ class AdminPayoutController extends Controller
 
     /**
      * Reject a payout and return the balance to the seller.
-     *
-     * @param  Payout       $payout
-     * @param  \App\Models\User $admin
-     * @param  string|null  $note
-     * @return JsonResponse
      */
     private function rejectPayout(Payout $payout, $admin, ?string $note): JsonResponse
     {
@@ -174,21 +164,29 @@ class AdminPayoutController extends Controller
             ]);
         });
 
-        Mail::to($payout->seller->email)->send(
-            new PayoutProcessedMail(
-                userName: $payout->seller->name,
-                amount: $payout->amount,
-                status: 'rejected',
-                adminNote: $note,
-                dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
-            )
-        );
+        try {
+            Mail::to($payout->seller->email)->send(
+                new PayoutProcessedMail(
+                    userName: $payout->seller->name,
+                    amount: $payout->amount,
+                    status: 'rejected',
+                    adminNote: $note,
+                    dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
+                )
+            );
+        } catch (\Exception $e) {
+            Log::warning('Payout rejection email failed: ' . $e->getMessage());
+        }
 
-        $this->notifications->payoutRejected(
-            $payout->seller_id,
-            $payout->amount,
-            $payout->id
-        );
+        try {
+            $this->notifications->payoutRejected(
+                $payout->seller_id,
+                $payout->amount,
+                $payout->id
+            );
+        } catch (\Exception $e) {
+            Log::warning('Payout rejection notification failed: ' . $e->getMessage());
+        }
 
         return ApiResponse::success([
             'payout' => $payout->fresh(['seller', 'processor']),

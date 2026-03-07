@@ -42,30 +42,31 @@ class MessageController extends Controller
     {
         $userId = $request->user()->id;
 
-        // Get all orders this user is involved in that have messages
-        $threads = Message::where(function ($q) use ($userId) {
+        // Get the latest message ID per order to avoid GROUP BY strict mode issues
+        $latestIds = Message::where(function ($q) use ($userId) {
             $q->where('sender_id', $userId)
                 ->orWhere('recipient_id', $userId);
         })
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('order_id')
+            ->pluck('id');
+
+        $threads = Message::whereIn('id', $latestIds)
             ->with([
                 'order:id,order_number,buyer_id',
                 'order.buyer:id,name,avatar_url',
                 'sender:id,name,avatar_url',
                 'recipient:id,name,avatar_url',
             ])
-            ->selectRaw('*, MAX(created_at) as latest_at')
-            ->groupBy('order_id')
-            ->orderByDesc('latest_at')
+            ->orderByDesc('created_at')
             ->get();
 
-        // For each thread get the unread count for this user
         $formatted = $threads->map(function ($message) use ($userId) {
             $unreadCount = Message::where('order_id', $message->order_id)
                 ->where('recipient_id', $userId)
                 ->whereNull('read_at')
                 ->count();
 
-            // Determine the other party in the conversation
             $otherParty = $message->sender_id === $userId
                 ? $message->recipient
                 : $message->sender;
@@ -79,17 +80,17 @@ class MessageController extends Controller
                     'avatar_url' => $otherParty->avatar_url,
                 ],
                 'last_message' => [
-                    'body'       => $message->body,
-                    'sent_at'    => $message->created_at,
-                    'is_mine'    => $message->sender_id === $userId,
+                    'body'    => $message->body,
+                    'sent_at' => $message->created_at,
+                    'is_mine' => $message->sender_id === $userId,
                 ],
                 'unread_count' => $unreadCount,
             ];
         });
 
         return ApiResponse::success([
-            'threads'       => $formatted,
-            'total_unread'  => $formatted->sum('unread_count'),
+            'threads'      => $formatted,
+            'total_unread' => $formatted->sum('unread_count'),
         ]);
     }
 

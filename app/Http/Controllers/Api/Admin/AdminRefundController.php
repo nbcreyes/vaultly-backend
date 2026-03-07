@@ -13,6 +13,7 @@ use App\Models\Transaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -30,6 +31,7 @@ class AdminRefundController extends Controller
     public function __construct(
         private readonly \App\Services\NotificationService $notifications,
     ) {}
+
     /**
      * List all refund requests with optional status filter.
      *
@@ -77,18 +79,6 @@ class AdminRefundController extends Controller
     /**
      * Process a refund request — approve or reject.
      *
-     * On approve:
-     *   1. Issue PayPal refund via capture ID
-     *   2. Mark order item as refunded
-     *   3. Deduct seller earnings from seller balance
-     *   4. Write transaction ledger entry
-     *   5. Revoke all active download tokens
-     *   6. Email buyer and seller
-     *
-     * On reject:
-     *   1. Mark refund as rejected
-     *   2. Email buyer with reason
-     *
      * PATCH /api/v1/admin/refunds/{id}/process
      */
     public function process(ProcessRefundRequest $request, string $id): JsonResponse
@@ -120,36 +110,37 @@ class AdminRefundController extends Controller
 
     /**
      * Approve a refund.
-     * Issues PayPal refund, revokes downloads, adjusts seller balance.
+     * Issues PayPal refund (production only), revokes downloads, adjusts seller balance.
      */
     private function approveRefund(Refund $refund, $admin, ?string $note): JsonResponse
     {
-        $captureId = $refund->orderItem->order->paypal_capture_id;
-
-        // Issue the PayPal refund first — if this fails we abort
-        // and do not touch the database
-        try {
-            $paypalService = app(\App\Services\PayPalService::class);
-            $paypalResult  = $paypalService->refundCapture(
-                captureId: $captureId,
-                amount: $refund->amount,
-                note: 'Refund approved by Vaultly support'
-            );
-        } catch (\RuntimeException $e) {
-            return ApiResponse::error(
-                'PayPal refund failed: ' . $e->getMessage(),
-                502
-            );
+        // Skip PayPal in non-production environments
+        $paypalResult = ['id' => null];
+        if (app()->environment('production')) {
+            $captureId = $refund->orderItem->order->paypal_capture_id;
+            try {
+                $paypalService = app(\App\Services\PayPalService::class);
+                $paypalResult  = $paypalService->refundCapture(
+                    captureId: $captureId,
+                    amount: $refund->amount,
+                    note: 'Refund approved by Vaultly support'
+                );
+            } catch (\RuntimeException $e) {
+                return ApiResponse::error(
+                    'PayPal refund failed: ' . $e->getMessage(),
+                    502
+                );
+            }
         }
 
         DB::transaction(function () use ($refund, $admin, $note, $paypalResult) {
             // Mark refund as approved
             $refund->update([
-                'status'              => 'approved',
-                'admin_note'          => $note,
-                'processed_by'        => $admin->id,
-                'processed_at'        => now(),
-                'paypal_refund_id'    => $paypalResult['id'] ?? null,
+                'status'           => 'approved',
+                'admin_note'       => $note,
+                'processed_by'     => $admin->id,
+                'processed_at'     => now(),
+                'paypal_refund_id' => $paypalResult['id'] ?? null,
             ]);
 
             // Mark the order item as refunded
@@ -191,41 +182,53 @@ class AdminRefundController extends Controller
         });
 
         // Email the buyer
-        Mail::to($refund->buyer->email)->send(new RefundProcessedMail(
-            userName: $refund->buyer->name,
-            productTitle: $refund->orderItem->product->title,
-            amount: $refund->amount,
-            status: 'approved',
-            adminNote: $note,
-            dashboardUrl: config('app.frontend_url') . '/purchases',
-        ));
+        try {
+            Mail::to($refund->buyer->email)->send(new RefundProcessedMail(
+                userName: $refund->buyer->name,
+                productTitle: $refund->orderItem->product->title,
+                amount: $refund->amount,
+                status: 'approved',
+                adminNote: $note,
+                dashboardUrl: config('app.frontend_url') . '/purchases',
+            ));
+        } catch (\Exception $e) {
+            Log::warning('Refund approval buyer email failed: ' . $e->getMessage());
+        }
 
         // Email the seller
-        Mail::to($refund->seller->email)->send(new RefundApprovedSellerMail(
-            sellerName: $refund->seller->name,
-            productTitle: $refund->orderItem->product->title,
-            amount: $refund->amount,
-            deductedAmount: $refund->orderItem->seller_earnings,
-            dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
-        ));
+        try {
+            Mail::to($refund->seller->email)->send(new RefundApprovedSellerMail(
+                sellerName: $refund->seller->name,
+                productTitle: $refund->orderItem->product->title,
+                amount: $refund->amount,
+                deductedAmount: $refund->orderItem->seller_earnings,
+                dashboardUrl: config('app.frontend_url') . '/seller/dashboard',
+            ));
+        } catch (\Exception $e) {
+            Log::warning('Refund approval seller email failed: ' . $e->getMessage());
+        }
 
-        $this->notifications->refundApproved(
-            $refund->buyer_id,
-            $refund->orderItem->product->title,
-            $refund->amount,
-            $refund->id
-        );
+        try {
+            $this->notifications->refundApproved(
+                $refund->buyer_id,
+                $refund->orderItem->product->title,
+                $refund->amount,
+                $refund->id
+            );
 
-        $this->notifications->refundDeducted(
-            $refund->seller_id,
-            $refund->orderItem->product->title,
-            $refund->orderItem->seller_earnings,
-            $refund->id
-        );
+            $this->notifications->refundDeducted(
+                $refund->seller_id,
+                $refund->orderItem->product->title,
+                $refund->orderItem->seller_earnings,
+                $refund->id
+            );
+        } catch (\Exception $e) {
+            Log::warning('Refund notification failed: ' . $e->getMessage());
+        }
 
         return ApiResponse::success([
             'refund' => $refund->fresh(['buyer', 'seller', 'orderItem.product']),
-        ], 'Refund approved. PayPal refund issued and downloads revoked.');
+        ], 'Refund approved. Downloads revoked.');
     }
 
     /**
@@ -240,20 +243,28 @@ class AdminRefundController extends Controller
             'processed_at' => now(),
         ]);
 
-        Mail::to($refund->buyer->email)->send(new RefundProcessedMail(
-            userName: $refund->buyer->name,
-            productTitle: $refund->orderItem->product->title,
-            amount: $refund->amount,
-            status: 'rejected',
-            adminNote: $note,
-            dashboardUrl: config('app.frontend_url') . '/purchases',
-        ));
-        
-        $this->notifications->refundRejected(
-            $refund->buyer_id,
-            $refund->orderItem->product->title,
-            $refund->id
-        );
+        try {
+            Mail::to($refund->buyer->email)->send(new RefundProcessedMail(
+                userName: $refund->buyer->name,
+                productTitle: $refund->orderItem->product->title,
+                amount: $refund->amount,
+                status: 'rejected',
+                adminNote: $note,
+                dashboardUrl: config('app.frontend_url') . '/purchases',
+            ));
+        } catch (\Exception $e) {
+            Log::warning('Refund rejection email failed: ' . $e->getMessage());
+        }
+
+        try {
+            $this->notifications->refundRejected(
+                $refund->buyer_id,
+                $refund->orderItem->product->title,
+                $refund->id
+            );
+        } catch (\Exception $e) {
+            Log::warning('Refund rejection notification failed: ' . $e->getMessage());
+        }
 
         return ApiResponse::success([
             'refund' => $refund->fresh(['buyer', 'seller', 'orderItem.product']),

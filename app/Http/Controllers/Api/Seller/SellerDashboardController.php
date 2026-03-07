@@ -54,18 +54,22 @@ class SellerDashboardController extends Controller
         // This month revenue
         $thisMonthRevenue = OrderItem::where('seller_id', $sellerId)
             ->where('status', 'active')
-            ->whereHas('order', fn($q) => $q->where('status', 'completed')
-                ->whereMonth('paid_at', now()->month)
-                ->whereYear('paid_at', now()->year)
+            ->whereHas(
+                'order',
+                fn($q) => $q->where('status', 'completed')
+                    ->whereMonth('paid_at', now()->month)
+                    ->whereYear('paid_at', now()->year)
             )
             ->sum('seller_earnings');
 
         // Last month revenue
         $lastMonthRevenue = OrderItem::where('seller_id', $sellerId)
             ->where('status', 'active')
-            ->whereHas('order', fn($q) => $q->where('status', 'completed')
-                ->whereMonth('paid_at', now()->subMonth()->month)
-                ->whereYear('paid_at', now()->subMonth()->year)
+            ->whereHas(
+                'order',
+                fn($q) => $q->where('status', 'completed')
+                    ->whereMonth('paid_at', now()->subMonth()->month)
+                    ->whereYear('paid_at', now()->subMonth()->year)
             )
             ->sum('seller_earnings');
 
@@ -77,18 +81,22 @@ class SellerDashboardController extends Controller
         // This month sales count
         $thisMonthSales = OrderItem::where('seller_id', $sellerId)
             ->where('status', 'active')
-            ->whereHas('order', fn($q) => $q->where('status', 'completed')
-                ->whereMonth('paid_at', now()->month)
-                ->whereYear('paid_at', now()->year)
+            ->whereHas(
+                'order',
+                fn($q) => $q->where('status', 'completed')
+                    ->whereMonth('paid_at', now()->month)
+                    ->whereYear('paid_at', now()->year)
             )
             ->count();
 
         // Last month sales count
         $lastMonthSales = OrderItem::where('seller_id', $sellerId)
             ->where('status', 'active')
-            ->whereHas('order', fn($q) => $q->where('status', 'completed')
-                ->whereMonth('paid_at', now()->subMonth()->month)
-                ->whereYear('paid_at', now()->subMonth()->year)
+            ->whereHas(
+                'order',
+                fn($q) => $q->where('status', 'completed')
+                    ->whereMonth('paid_at', now()->subMonth()->month)
+                    ->whereYear('paid_at', now()->subMonth()->year)
             )
             ->count();
 
@@ -109,8 +117,8 @@ class SellerDashboardController extends Controller
             'product',
             fn($q) => $q->where('seller_id', $sellerId)
         )
-        ->where('is_visible', true)
-        ->avg('rating');
+            ->where('is_visible', true)
+            ->avg('rating');
 
         // Pending refund requests
         $pendingRefunds = \App\Models\Refund::where('seller_id', $sellerId)
@@ -126,7 +134,7 @@ class SellerDashboardController extends Controller
             'balance' => [
                 'available'   => (float) $profile->available_balance,
                 'pending'     => (float) $profile->pending_balance,
-                'total_earned'=> (float) $profile->total_earned,
+                'total_earned' => (float) $profile->total_earned,
             ],
             'sales' => [
                 'total'            => $profile->total_sales,
@@ -242,19 +250,18 @@ class SellerDashboardController extends Controller
         [$startDate, $groupFormat, $labelFormat] = match ($period) {
             '7d'  => [now()->subDays(6)->startOfDay(),   '%Y-%m-%d', 'Y-m-d'],
             '90d' => [now()->subDays(89)->startOfDay(),  '%Y-%m-%d', 'Y-m-d'],
-            '12m' => [now()->subMonths(11)->startOfMonth(),'%Y-%m',  'Y-m'],
+            '12m' => [now()->subMonths(11)->startOfMonth(), '%Y-%m',  'Y-m'],
             default => [now()->subDays(29)->startOfDay(), '%Y-%m-%d', 'Y-m-d'],
         };
 
-        $rows = OrderItem::where('seller_id', $sellerId)
-            ->where('status', 'active')
-            ->whereHas('order', fn($q) => $q->where('status', 'completed')
-                ->where('paid_at', '>=', $startDate)
-            )
+        $rows = OrderItem::where('order_items.seller_id', $sellerId)
+            ->where('order_items.status', 'active')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('orders.status', 'completed')
+            ->where('orders.paid_at', '>=', $startDate)
             ->selectRaw("DATE_FORMAT(orders.paid_at, '{$groupFormat}') as period_key,
-                         SUM(order_items.seller_earnings) as revenue,
-                         COUNT(*) as sales")
+                 SUM(order_items.seller_earnings) as revenue,
+                 COUNT(*) as sales")
             ->groupBy('period_key')
             ->orderBy('period_key')
             ->get()
