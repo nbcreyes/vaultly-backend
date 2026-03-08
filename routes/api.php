@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Admin\AdminRefundController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
 use App\Http\Controllers\Api\Admin\AdminPayoutController;
 use App\Http\Controllers\Api\Webhook\PayPalWebhookController;
+use Illuminate\Support\Facades\Artisan;
 
 /*
 |--------------------------------------------------------------------------
@@ -164,7 +165,6 @@ Route::prefix('v1')->group(function () {
             // Payouts
             Route::get('/payouts',  [SellerPayoutController::class, 'index']);
             Route::post('/payouts', [SellerPayoutController::class, 'store']);
-
         });
 
         // -------------------------------------------------------------------------
@@ -186,6 +186,15 @@ Route::prefix('v1')->group(function () {
             Route::get('/products',                   [AdminDashboardController::class, 'products']);
             Route::patch('/products/{id}/status',     [AdminDashboardController::class, 'updateProductStatus']);
 
+            // TEMPORARY - remove after seeding
+            Route::get('/temp-seed', function () {
+                if (app()->environment('production')) {
+                    Artisan::call('db:seed --force');
+                    return response()->json(['done' => true, 'output' => Artisan::output()]);
+                }
+                return response()->json(['error' => 'not in production']);
+            });
+
             // Seller applications
             Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
             Route::get('/seller-applications/{id}',          [AdminSellerApplicationController::class, 'show']);
@@ -200,9 +209,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/refunds',                [AdminRefundController::class, 'index']);
             Route::get('/refunds/{id}',           [AdminRefundController::class, 'show']);
             Route::patch('/refunds/{id}/process', [AdminRefundController::class, 'process']);
-
         });
-
     });
-
 });
