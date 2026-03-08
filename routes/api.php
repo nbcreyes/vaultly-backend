@@ -21,7 +21,6 @@ use App\Http\Controllers\Api\Admin\AdminRefundController;
 use App\Http\Controllers\Api\Admin\AdminSellerApplicationController;
 use App\Http\Controllers\Api\Admin\AdminPayoutController;
 use App\Http\Controllers\Api\Webhook\PayPalWebhookController;
-use Illuminate\Support\Facades\Artisan;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,12 +29,6 @@ use Illuminate\Support\Facades\Artisan;
 */
 
 Route::get('/health', [HealthController::class, 'index']);
-
-// TEMPORARY - remove after seeding
-Route::get('/temp-seed', function () {
-    Artisan::call('db:seed', ['--force' => true]);
-    return response()->json(['done' => true, 'output' => Artisan::output()]);
-});
 
 Route::prefix('v1')->group(function () {
 
