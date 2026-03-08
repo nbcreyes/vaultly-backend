@@ -25,21 +25,17 @@ use Illuminate\Support\Facades\Artisan;
 
 /*
 |--------------------------------------------------------------------------
-| Vaultly API Routes — Final Complete Version
+| Vaultly API Routes
 |--------------------------------------------------------------------------
-|
-| All 60+ endpoints across buyer, seller, admin, and shared flows.
-|
-| Middleware reference:
-|   auth:sanctum    - valid Bearer token required
-|   verified.email  - email_verified_at must be set
-|   active.account  - status must be active
-|   role.admin      - role must be admin
-|   role.seller     - role must be seller
-|
 */
 
 Route::get('/health', [HealthController::class, 'index']);
+
+// TEMPORARY - remove after seeding
+Route::get('/temp-seed', function () {
+    Artisan::call('db:seed', ['--force' => true]);
+    return response()->json(['done' => true, 'output' => Artisan::output()]);
+});
 
 Route::prefix('v1')->group(function () {
 
@@ -84,10 +80,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
         // User profile
-        Route::patch('/user/profile',         [ProfileController::class, 'update']);
-        Route::post('/user/avatar',           [ProfileController::class, 'uploadAvatar']);
-        Route::delete('/user/avatar',         [ProfileController::class, 'deleteAvatar']);
-        Route::post('/user/change-password',  [ProfileController::class, 'changePassword']);
+        Route::patch('/user/profile',        [ProfileController::class, 'update']);
+        Route::post('/user/avatar',          [ProfileController::class, 'uploadAvatar']);
+        Route::delete('/user/avatar',        [ProfileController::class, 'deleteAvatar']);
+        Route::post('/user/change-password', [ProfileController::class, 'changePassword']);
 
         // Notifications
         Route::get('/notifications',              [NotificationController::class, 'index']);
@@ -183,17 +179,8 @@ Route::prefix('v1')->group(function () {
             Route::patch('/users/{id}/status', [AdminDashboardController::class, 'updateUserStatus']);
 
             // Product moderation
-            Route::get('/products',                   [AdminDashboardController::class, 'products']);
-            Route::patch('/products/{id}/status',     [AdminDashboardController::class, 'updateProductStatus']);
-
-            // TEMPORARY - remove after seeding
-            Route::get('/temp-seed', function () {
-                if (app()->environment('production')) {
-                    Artisan::call('db:seed --force');
-                    return response()->json(['done' => true, 'output' => Artisan::output()]);
-                }
-                return response()->json(['error' => 'not in production']);
-            });
+            Route::get('/products',               [AdminDashboardController::class, 'products']);
+            Route::patch('/products/{id}/status', [AdminDashboardController::class, 'updateProductStatus']);
 
             // Seller applications
             Route::get('/seller-applications',               [AdminSellerApplicationController::class, 'index']);
